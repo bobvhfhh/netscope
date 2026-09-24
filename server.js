@@ -12,6 +12,7 @@ const pages = ['claude', 'gpt', 'ip', 'link', 'dns', 'webrtc', 'cloudflare', 'pi
 const files = { '/': ['index.html', 'text/html; charset=utf-8'], '/index.html': ['index.html', 'text/html; charset=utf-8'], '/styles.css': ['styles.css', 'text/css; charset=utf-8'], '/app.js': ['app.js', 'application/javascript; charset=utf-8'], '/pages.js': ['pages.js', 'application/javascript; charset=utf-8'] };
 pages.forEach((page) => { files['/' + page + '/'] = [page + '.html', 'text/html; charset=utf-8']; });
 const cache = new Map();
+const probeNodes = (() => { try { return JSON.parse(process.env.PING_PROBES || '[]'); } catch { return []; } })();
 const dnsZone = (process.env.DNS_ZONE || '').toLowerCase().replace(/\.$/, '');
 const dnsLog = process.env.DNS_LOG_FILE || '/tmp/netscope-dns.json';
 function readDns(){try{return JSON.parse(fs.readFileSync(dnsLog,'utf8'))}catch{return {}}}
@@ -42,11 +43,13 @@ http.createServer(async (request, response) => {
     if (url.pathname === '/api/probe') return json(response, 200, { target: url.searchParams.get('target'), latency: await safeProbe(url.searchParams.get('target') || '') });
     if (url.pathname === '/api/status') { const results = await Promise.all(statusTargets.map(async (target) => { try { return { target, ok: true, latency: await safeProbe(target) }; } catch { return { target, ok: false }; } })); return json(response, 200, { generatedAt: new Date().toISOString(), results }); }
     if (url.pathname === '/api/ping') { const target=url.searchParams.get('target') || ''; const count=Math.min(5, Math.max(1, Number(url.searchParams.get('count') || 3))); const values=[]; for(let i=0;i<count;i++){try{values.push(await safeProbe(target))}catch{}} if(!values.length)return json(response, 502, { error:'目标不可达或探测失败' }); return json(response, 200, { target, node:process.env.PING_NODE_NAME || '本机 VPS', samples:values, min:Math.min(...values), avg:Math.round(values.reduce((a,b)=>a+b,0)/values.length), max:Math.max(...values) }); }
+    if (url.pathname === '/api/ping/nodes') return json(response, 200, { nodes:[{ name:process.env.PING_NODE_NAME || '本机 VPS', url:'local' }, ...probeNodes.map(x=>({name:x.name,url:x.url}))] });
   } catch (error) { return json(response, 502, { error: error.message || 'Upstream request failed' }); }
   const entry = files[url.pathname];
   if (!entry) { response.writeHead(404, headers('text/plain; charset=utf-8')); response.end('Not Found'); return; }
   fs.readFile(path.join(root, entry[0]), (error, content) => { if (error) { response.writeHead(500, headers('text/plain; charset=utf-8')); response.end('Internal Server Error'); return; } response.writeHead(200, headers(entry[1])); response.end(request.method === 'HEAD' ? undefined : content); });
 }).listen(port, host, () => console.log(`NetScope listening on http://${host}:${port}`));
+
 
 
 
