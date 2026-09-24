@@ -28,6 +28,7 @@ services:
       DNS_PORT: 5353
     ports:
       - "53:5353/udp"
+      - "53:5353/tcp"
     volumes:
       - netscope-data:/data
     security_opt:
