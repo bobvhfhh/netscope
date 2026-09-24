@@ -99,7 +99,7 @@ server {
 
 再使用 Certbot 或已有证书配置 HTTPS。
 
-## 更新项目
+## DNS 泄漏检测部署（需要你自己的域名）`n`nDNS 检测不是普通 HTTP 请求。要得到真实结果，需要一个域名子域和权威 DNS 服务。`n`n1. 准备一个域名，例如 `example.com`。`n2. 选择一个子域，例如 `dns.example.com`，把它的 NS 记录委派到这台 VPS；同时确保该子域的 glue/NS 配置能找到 VPS 的公网 IP。`n3. 在 `.env` 中设置：`n`n```env`nDNS_ZONE=dns.example.com`n``` `n`n4. VPS 防火墙和云安全组开放 UDP/TCP `53`，然后重启：`n`n```bash`ndocker compose up -d --build`n``` `n`n5. 打开网站的 `/dns/` 页面开始测试。`n`n如果页面提示未配置或超时，优先检查 NS 委派、DNS_ZONE、UDP 53 和运营商是否拦截自建 DNS。`n`n## 更新项目
 
 ```bash
 cd netscope
@@ -161,4 +161,5 @@ compose.yaml     Docker Compose 部署配置
 ## License
 
 MIT
+
 
