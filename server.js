@@ -41,10 +41,12 @@ http.createServer(async (request, response) => {
     if (url.pathname === '/api/whois') return json(response, 200, await rdap(url.searchParams.get('query') || ''));
     if (url.pathname === '/api/probe') return json(response, 200, { target: url.searchParams.get('target'), latency: await safeProbe(url.searchParams.get('target') || '') });
     if (url.pathname === '/api/status') { const results = await Promise.all(statusTargets.map(async (target) => { try { return { target, ok: true, latency: await safeProbe(target) }; } catch { return { target, ok: false }; } })); return json(response, 200, { generatedAt: new Date().toISOString(), results }); }
+    if (url.pathname === '/api/ping') { const target=url.searchParams.get('target') || ''; const count=Math.min(5, Math.max(1, Number(url.searchParams.get('count') || 3))); const values=[]; for(let i=0;i<count;i++){try{values.push(await safeProbe(target))}catch{}} if(!values.length)return json(response, 502, { error:'目标不可达或探测失败' }); return json(response, 200, { target, node:process.env.PING_NODE_NAME || '本机 VPS', samples:values, min:Math.min(...values), avg:Math.round(values.reduce((a,b)=>a+b,0)/values.length), max:Math.max(...values) }); }
   } catch (error) { return json(response, 502, { error: error.message || 'Upstream request failed' }); }
   const entry = files[url.pathname];
   if (!entry) { response.writeHead(404, headers('text/plain; charset=utf-8')); response.end('Not Found'); return; }
   fs.readFile(path.join(root, entry[0]), (error, content) => { if (error) { response.writeHead(500, headers('text/plain; charset=utf-8')); response.end('Internal Server Error'); return; } response.writeHead(200, headers(entry[1])); response.end(request.method === 'HEAD' ? undefined : content); });
 }).listen(port, host, () => console.log(`NetScope listening on http://${host}:${port}`));
+
 
 
