@@ -1,8 +1,9 @@
 FROM node:24-alpine
 WORKDIR /app
-COPY package.json server.js index.html styles.css app.js ./
+COPY package.json server.js index.html styles.css app.js pages.js *.html ./
 ENV NODE_ENV=production
 ENV PORT=8080
 EXPOSE 8080
 USER node
 CMD ["node", "server.js"]
+
