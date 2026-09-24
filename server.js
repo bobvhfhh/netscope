@@ -39,7 +39,7 @@ http.createServer(async (request, response) => {
     if (url.pathname === '/api/dns/start') { if (!dnsZone) return json(response, 200, { configured:false }); const token=crypto.randomBytes(12).toString('hex'); return json(response, 200, { configured:true, token, name: token+'.'+dnsZone }); }
     if (url.pathname.startsWith('/api/dns/result/')) { const token=url.pathname.slice('/api/dns/result/'.length); const item=readDns()[token]; return json(response, 200, { configured:Boolean(dnsZone), found:Boolean(item), result:item||null }); }
     if (url.pathname.startsWith('/api/geoip/')) { const ip = decodeURIComponent(url.pathname.slice(11)); if (!validIp(ip)) return json(response, 400, { error: 'Invalid IP' }); return json(response, 200, await geo(ip)); }
-    if (url.pathname.startsWith('/api/iprisk/')) { const ip = decodeURIComponent(url.pathname.slice(12)); if (!validIp(ip)) return json(response, 400, { error: 'Invalid IP' }); const info = await geo(ip); return json(response, 200, { ...riskScore(info), geo: info }); }
+    if (url.pathname.startsWith('/api/iprisk/')) { const ip = decodeURIComponent(url.pathname.slice(12)); if (!validIp(ip)) return json(response, 400, { error: 'Invalid IP' }); const info = await geo(ip); let allocation = null; try { const r = await rdap(ip); allocation = { handle:r.handle, name:r.name, country:r.country, startAddress:r.startAddress, endAddress:r.endAddress, status:r.status, entities:r.entities, events:r.events }; } catch {} return json(response, 200, { ...riskScore(info), geo: info, allocation }); }
     if (url.pathname === '/api/whois') return json(response, 200, await rdap(url.searchParams.get('query') || ''));
     if (url.pathname === '/api/probe') return json(response, 200, { target: url.searchParams.get('target'), latency: await safeProbe(url.searchParams.get('target') || '') });
     if (url.pathname === '/api/status') { const results = await Promise.all(statusTargets.map(async (target) => { try { return { target, ok: true, latency: await safeProbe(target) }; } catch { return { target, ok: false }; } })); return json(response, 200, { generatedAt: new Date().toISOString(), results }); }
@@ -50,6 +50,7 @@ http.createServer(async (request, response) => {
   if (!entry) { response.writeHead(404, headers('text/plain; charset=utf-8')); response.end('Not Found'); return; }
   fs.readFile(path.join(root, entry[0]), (error, content) => { if (error) { response.writeHead(500, headers('text/plain; charset=utf-8')); response.end('Internal Server Error'); return; } response.writeHead(200, headers(entry[1])); response.end(request.method === 'HEAD' ? undefined : content); });
 }).listen(port, host, () => console.log(`NetScope listening on http://${host}:${port}`));
+
 
 
 
