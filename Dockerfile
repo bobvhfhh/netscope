@@ -7,3 +7,4 @@ EXPOSE 8080
 USER node
 CMD ["node", "server.js"]
 
+
