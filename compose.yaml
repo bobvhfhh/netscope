@@ -7,8 +7,30 @@ services:
       - "${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-8080}:8080"
     environment:
       PORT: 8080
+      DNS_ZONE: ${DNS_ZONE:-}
+      DNS_LOG_FILE: /data/dns.json
+    volumes:
+      - netscope-data:/data
     security_opt:
       - no-new-privileges:true
     read_only: true
     tmpfs:
       - /tmp
+  netscope-dns:
+    build:
+      context: .
+      dockerfile: Dockerfile.dns
+    container_name: netscope-dns
+    restart: unless-stopped
+    environment:
+      DNS_ZONE: ${DNS_ZONE:-}
+      DNS_LOG_FILE: /data/dns.json
+      DNS_PORT: 53
+    ports:
+      - "53:53/udp"
+    volumes:
+      - netscope-data:/data
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  netscope-data:

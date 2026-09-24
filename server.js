@@ -3,6 +3,7 @@ const https = require('node:https');
 const fs = require('node:fs');
 const path = require('node:path');
 const dns = require('node:dns').promises;
+const crypto = require('node:crypto');
 
 const host = process.env.HOST || '0.0.0.0';
 const port = Number(process.env.PORT || 8080);
@@ -11,6 +12,9 @@ const pages = ['claude', 'gpt', 'ip', 'link', 'dns', 'webrtc', 'cloudflare', 'pi
 const files = { '/': ['index.html', 'text/html; charset=utf-8'], '/index.html': ['index.html', 'text/html; charset=utf-8'], '/styles.css': ['styles.css', 'text/css; charset=utf-8'], '/app.js': ['app.js', 'application/javascript; charset=utf-8'], '/pages.js': ['pages.js', 'application/javascript; charset=utf-8'] };
 pages.forEach((page) => { files['/' + page + '/'] = [page + '.html', 'text/html; charset=utf-8']; });
 const cache = new Map();
+const dnsZone = (process.env.DNS_ZONE || '').toLowerCase().replace(/\.$/, '');
+const dnsLog = process.env.DNS_LOG_FILE || '/tmp/netscope-dns.json';
+function readDns(){try{return JSON.parse(fs.readFileSync(dnsLog,'utf8'))}catch{return {}}}
 
 function headers(type) { return { 'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()' }; }
 function json(response, status, body) { response.writeHead(status, headers('application/json; charset=utf-8')); response.end(JSON.stringify(body)); }
@@ -30,6 +34,8 @@ http.createServer(async (request, response) => {
   try {
     if (url.pathname === '/healthz') return json(response, 200, { ok: true });
     if (url.pathname === '/api/public-ip') return json(response, 200, { ip: request.headers['x-forwarded-for']?.split(',')[0]?.trim() || request.socket.remoteAddress || null });
+    if (url.pathname === '/api/dns/start') { if (!dnsZone) return json(response, 200, { configured:false }); const token=crypto.randomBytes(12).toString('hex'); return json(response, 200, { configured:true, token, name: token+'.'+dnsZone }); }
+    if (url.pathname.startsWith('/api/dns/result/')) { const token=url.pathname.slice('/api/dns/result/'.length); const item=readDns()[token]; return json(response, 200, { configured:Boolean(dnsZone), found:Boolean(item), result:item||null }); }
     if (url.pathname.startsWith('/api/geoip/')) { const ip = decodeURIComponent(url.pathname.slice(11)); if (!validIp(ip)) return json(response, 400, { error: 'Invalid IP' }); return json(response, 200, await geo(ip)); }
     if (url.pathname.startsWith('/api/iprisk/')) { const ip = decodeURIComponent(url.pathname.slice(12)); if (!validIp(ip)) return json(response, 400, { error: 'Invalid IP' }); const info = await geo(ip); return json(response, 200, { ...riskScore(info), geo: info }); }
     if (url.pathname === '/api/whois') return json(response, 200, await rdap(url.searchParams.get('query') || ''));
@@ -40,4 +46,5 @@ http.createServer(async (request, response) => {
   if (!entry) { response.writeHead(404, headers('text/plain; charset=utf-8')); response.end('Not Found'); return; }
   fs.readFile(path.join(root, entry[0]), (error, content) => { if (error) { response.writeHead(500, headers('text/plain; charset=utf-8')); response.end('Internal Server Error'); return; } response.writeHead(200, headers(entry[1])); response.end(request.method === 'HEAD' ? undefined : content); });
 }).listen(port, host, () => console.log(`NetScope listening on http://${host}:${port}`));
+
 
