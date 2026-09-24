@@ -25,12 +25,13 @@ services:
     environment:
       DNS_ZONE: ${DNS_ZONE:-}
       DNS_LOG_FILE: /data/dns.json
-      DNS_PORT: 53
+      DNS_PORT: 5353
     ports:
-      - "53:53/udp"
+      - "53:5353/udp"
     volumes:
       - netscope-data:/data
     security_opt:
       - no-new-privileges:true
 volumes:
   netscope-data:
+
