@@ -1,85 +1,22 @@
-const targets = [
-  ['网易', '国内', '🇨🇳'], ['字节跳动', '国内', '🇨🇳'], ['Cloudflare中国', '国内', '🇨🇳'], ['高通中国', '国内', '🇨🇳'],
-  ['discord.com', '国际 · Social', '🇺🇸'], ['x.com', '国际 · Social', '🇺🇸'], ['medium.com', '国际 · Social', '🇺🇸'], ['signal.org', '国际 · Social', '🇺🇸'],
-  ['anthropic.com', '国际 · AI', '🇺🇸'], ['claude.ai', '国际 · AI', '🇺🇸'], ['chatgpt.com', '国际 · AI', '🇺🇸'], ['openai.com', '国际 · AI', '🇺🇸'], ['sora.com', '国际 · AI', '🇺🇸'], ['grok.com', '国际 · AI', '🇺🇸'], ['perplexity.ai', '国际 · AI', '🇺🇸'],
-  ['coinbase.com', '国际 · Crypto', '🇺🇸'], ['www.okx.com', '国际 · Crypto', '🇺🇸'], ['binance.com', '国际 · Crypto', '🇺🇸'], ['crypto.com', '国际 · Crypto', '🇺🇸'],
-  ['zoom.us', '国际 · Tools', '🇺🇸'], ['notion.so', '国际 · Tools', '🇺🇸'], ['shopify.com', '国际 · Tools', '🇺🇸'], ['npm registry', '国际 · Static', '🇺🇸'], ['nodejs.org', '国际 · Dev', '🇺🇸'], ['gitlab.com', '国际 · Dev', '🇺🇸']
+const targets=[
+{name:'网易',tag:'国内',flag:'🇨🇳',method:'header',url:'https://necaptcha.nosdn.127.net/ab7f4275c1744aa28e0a8f3a1c58c532.png',header:'cdn-user-ip'},
+{name:'字节跳动',tag:'国内',flag:'🇨🇳',method:'header',url:'https://perfops.byte-test.com/500b-bench.jpg',header:'x-request-ip'},
+{name:'Cloudflare中国',tag:'国内',flag:'🇨🇳',domain:'www.cloudflare-cn.com'},
+{name:'高通中国',tag:'国内',flag:'🇨🇳',domain:'www.qualcomm.cn'},
+{name:'discord.com',tag:'Social',flag:'🌐',domain:'gateway.discord.gg'}, {name:'x.com',tag:'Social',flag:'🌐',domain:'x.com'}, {name:'medium.com',tag:'Social',flag:'🌐',domain:'medium.com'}, {name:'signal.org',tag:'Social',flag:'🌐',domain:'signal.org'},
+{name:'anthropic.com',tag:'AI',flag:'🌐',domain:'anthropic.com'}, {name:'claude.ai',tag:'AI',flag:'🌐',domain:'claude.ai'}, {name:'chatgpt.com',tag:'AI',flag:'🌐',domain:'chatgpt.com'}, {name:'openai.com',tag:'AI',flag:'🌐',domain:'openai.com'}, {name:'sora.com',tag:'AI',flag:'🌐',domain:'sora.com'}, {name:'grok.com',tag:'AI',flag:'🌐',domain:'grok.com'}, {name:'perplexity.ai',tag:'AI',flag:'🌐',domain:'www.perplexity.ai'},
+{name:'coinbase.com',tag:'Crypto',flag:'🌐',domain:'coinbase.com'}, {name:'www.okx.com',tag:'Crypto',flag:'🌐',domain:'www.okx.com'}, {name:'binance.com',tag:'Crypto',flag:'🌐',domain:'www.binance.info'}, {name:'crypto.com',tag:'Crypto',flag:'🌐',domain:'crypto.com'},
+{name:'zoom.us',tag:'Tools',flag:'🌐',domain:'zoom.us'}, {name:'notion.so',tag:'Tools',flag:'🌐',domain:'notion.so'}, {name:'shopify.com',tag:'Tools',flag:'🌐',domain:'shopify.com'}, {name:'npm registry',tag:'Static',flag:'🌐',domain:'registry.npmjs.org'}, {name:'nodejs.org',tag:'Dev',flag:'🌐',domain:'nodejs.org'}, {name:'gitlab.com',tag:'Dev',flag:'🌐',domain:'gitlab.com'}
 ];
-const endpoints = { Cloudflare: 'https://1.1.1.1/cdn-cgi/trace', GitHub: 'https://github.com/generate_204', YouTube: 'https://www.youtube.com/generate_204', '淘宝': 'https://www.taobao.com/favicon.ico', '微信': 'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico' };
-const $ = (selector) => document.querySelector(selector);
-
-function renderRows() {
-  $('#routeBody').innerHTML = targets.map((target) => {
-    return '<tr><td class="site-cell">' + target[0] + ' <span class="tag">' + target[1] + '</span></td><td class="flag">' + target[2] + '</td><td class="ip-cell" data-real="">等待检测</td><td class="geo-cell">等待检测</td></tr>';
-  }).join('');
-}
-
-function renderMini() {
-  $('#miniGrid').innerHTML = Object.keys(endpoints).map((name, index) => {
-    return '<div class="mini-item"><strong>' + name + '</strong><div class="dots">' + '<i></i>'.repeat(8) + '</div><div class="mini-ms" id="m' + index + '">-- ms</div></div>';
-  }).join('');
-}
-
-async function trace() {
-  try {
-    const response = await fetch('https://1.1.1.1/cdn-cgi/trace', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
-    return Object.fromEntries((await response.text()).trim().split('\n').map((line) => line.split('=')));
-  } catch { return null; }
-}
-
-async function updateIp() {
-  const data = await trace();
-  if (!data) { $('#ipValue').textContent = '获取失败'; return; }
-  $('#ipValue').textContent = data.ip || '未知';
-  $('#geoValue').textContent = (data.loc || '--') + ' · Cloudflare 节点 ' + (data.colo || '--');
-  $('#splitIp').textContent = data.ip || '--';
-  $('#splitIp').dataset.real = data.ip || '';
-}
-
-async function runMini() {
-  Object.values(endpoints).forEach(async (url, index) => {
-    const start = performance.now();
-    try {
-      await fetch(url, { mode: 'no-cors', cache: 'no-store', signal: AbortSignal.timeout(3500) });
-      $('#m' + index).textContent = Math.round(performance.now() - start) + ' ms';
-    } catch { $('#m' + index).textContent = '超时'; }
-  });
-}
-
-async function runRoutes() {
-  const data = await trace();
-  const ip = data && data.ip ? data.ip : '未获取到 IP';
-  document.querySelectorAll('#routeBody .ip-cell').forEach((cell) => { cell.textContent = ip; cell.dataset.real = ip; });
-  document.querySelectorAll('#routeBody .geo-cell').forEach((cell) => { cell.textContent = data ? ((data.loc || '未知') + ' · ' + (data.colo || '未知') + ' edge') : '未知'; });
-  runMini();
-}
-
-function maskIp(enabled) {
-  document.querySelectorAll('[data-real]').forEach((element) => {
-    const value = element.dataset.real || element.textContent;
-    element.dataset.real = value;
-    const isV4 = /^\d+\.\d+\.\d+\.\d+$/.test(value);
-    element.textContent = enabled && isV4 ? value.split('.').slice(0, 2).join('.') + '.*.*' : value;
-  });
-}
-
-async function checkWebRtc() {
-  if (!window.RTCPeerConnection) { $('#rtcDetail').textContent = '当前浏览器不支持 WebRTC'; return; }
-  try {
-    const peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-    peer.createDataChannel('probe');
-    await peer.setLocalDescription(await peer.createOffer());
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    peer.close();
-    $('#rtcDetail').textContent = '已完成 STUN 候选地址检查';
-  } catch { $('#rtcDetail').textContent = '浏览器拒绝了候选地址探测'; }
-}
-
-renderRows();
-renderMini();
-updateIp();
-runRoutes();
-$('#runAll').onclick = runRoutes;
-$('#themeButton').onclick = () => document.body.classList.toggle('dark');
-$('#maskToggle').onchange = (event) => maskIp(event.target.checked);
-$('#rtcButton').onclick = checkWebRtc;
+const pings={Cloudflare:'https://1.1.1.1/cdn-cgi/trace',GitHub:'https://github.com/generate_204',YouTube:'https://www.youtube.com/generate_204','淘宝':'https://www.taobao.com/favicon.ico','微信':'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico'};const $=s=>document.querySelector(s);
+function renderRows(){ $('#routeBody').innerHTML=targets.map((t,i)=>'<tr><td class="site-cell">'+t.name+' <span class="tag">'+t.tag+'</span></td><td class="flag" id="flag-'+i+'">'+t.flag+'</td><td class="ip-cell" id="ip-'+i+'" data-real="">等待检测</td><td class="geo-cell" id="geo-'+i+'">等待检测</td></tr>').join('')}
+function renderMini(){ $('#miniGrid').innerHTML=Object.keys(pings).map((n,i)=>'<div class="mini-item"><strong>'+n+'</strong><div class="dots">'+'<i></i>'.repeat(8)+'</div><div class="mini-ms" id="m'+i+'">-- ms</div></div>').join('')}
+async function trace(domain='1.1.1.1'){const r=await fetch('https://'+domain+'/cdn-cgi/trace',{cache:'no-store',signal:AbortSignal.timeout(5500)});const text=await r.text();return Object.fromEntries(text.trim().split('\n').map(l=>l.split('=')))}
+async function geo(ip){try{return await (await fetch('/api/geoip/'+encodeURIComponent(ip))).json()}catch{return null}}
+async function route(t,i){const ipEl=$('#ip-'+i),geoEl=$('#geo-'+i);ipEl.textContent='检测中…';geoEl.textContent='';try{let ip,loc;if(t.method==='header'){const r=await fetch(t.url,{method:'HEAD',cache:'no-store',signal:AbortSignal.timeout(5500)});ip=r.headers.get(t.header)||r.headers.get('x-response-cinfo');if(!ip)throw Error('目标未公开出口 IP')}else{const d=await trace(t.domain);ip=d.ip;loc=d.loc}if(!ip)throw Error('未获取到 IP');ipEl.textContent=ip;ipEl.dataset.real=ip;const g=await geo(ip);geoEl.textContent=g?[g.country,g.region,g.city,g.isp].filter(Boolean).join(' '):(loc||'未知');$('#flag-'+i).textContent=g?.countryCode?flag(g.countryCode):t.flag}catch(e){ipEl.textContent='未获取到 IP';geoEl.textContent=e.message;geoEl.className='geo-cell state-error'}}
+function flag(c){return c.toUpperCase().replace(/./g,x=>String.fromCodePoint(127397+x.charCodeAt()))}
+async function updateIp(){try{const d=await trace();$('#ipValue').textContent=d.ip||'未知';$('#geoValue').textContent=(d.loc||'--')+' · Cloudflare 节点 '+(d.colo||'--');$('#splitIp').textContent=d.ip||'--';$('#splitIp').dataset.real=d.ip||''}catch{$('#ipValue').textContent='获取失败'}}
+async function runMini(){Object.values(pings).forEach(async(url,i)=>{const start=performance.now();try{await fetch(url,{mode:'no-cors',cache:'no-store',signal:AbortSignal.timeout(3500)});$('#m'+i).textContent=Math.round(performance.now()-start)+' ms'}catch{$('#m'+i).textContent='超时'}})}
+function mask(on){document.querySelectorAll('[data-real]').forEach(e=>{const v=e.dataset.real||e.textContent;e.dataset.real=v;e.textContent=on&&/^\d+\.\d+\.\d+\.\d+$/.test(v)?v.split('.').slice(0,2).join('.')+'.*.*':v})}
+async function runAll(){await Promise.allSettled(targets.map(route));runMini()}
+renderRows();renderMini();updateIp();runAll();$('#runAll').onclick=runAll;$('#themeButton').onclick=()=>document.body.classList.toggle('dark');$('#maskToggle').onchange=e=>mask(e.target.checked);
